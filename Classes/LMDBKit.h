@@ -170,6 +170,10 @@ typedef NSInteger LMDBKitErrorCode;
 
 
 #pragma mark Sorted Set Handling
+
+- (BOOL)enumerateStartAtKey:(NSData *)startKey endKey:(NSData *)endKey returnKey:(BOOL)rKey returnData:(BOOL)rData
+                                                                                            usingBlock:(void (^) (NSData *data, NSData *key, NSInteger count, BOOL *stop))block;
+
 - (NSInteger)dataItemsCountForKey: (NSData *)key;
 
 - (BOOL)addDataItem: (NSData *)data toKey: (NSData *)key;

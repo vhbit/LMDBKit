@@ -1241,59 +1241,65 @@ NSString *const kLMDBKitDatabaseNamesKey = @"kLMDBKitDatabasesNameKey";
 #pragma mark Enumerate Keys and Objects
 - (BOOL)enumerateKeysAndDataItemsUsingBlock: (void (^) (NSData *data, NSData *key, NSInteger count, BOOL *stop))block;
 {
-    return [self _enumerateStartAtKey: nil returnKey: YES returnData: YES usingBlock: block];
+    return [self enumerateStartAtKey:nil endKey:nil returnKey:YES returnData:YES
+                          usingBlock:block];
 }
 
 - (BOOL)enumerateKeysAndObjectsInDatabaseNamed: (NSString *)name usingBlock: (void (^) (NSData *data, NSData *key, NSInteger count, BOOL *stop))block;
 {
-    return [self _enumerateStartAtKey: nil returnKey: YES returnData: YES usingBlock: block];
+    return [self enumerateStartAtKey:nil endKey:nil returnKey:YES returnData:YES
+                          usingBlock:block];
 }
 
 - (BOOL)enumerateKeysAndDataItemsStartWithKey: (NSData *)startKey usingBlock: (void (^) (NSData *data, NSData *key, NSInteger count, BOOL *stop))block;
 {
-    return [self _enumerateStartAtKey: startKey returnKey: YES returnData: YES usingBlock: block];
+    return [self enumerateStartAtKey:startKey endKey:nil returnKey:YES returnData:YES
+                          usingBlock:block];
 }
 
 - (BOOL)enumerateKeysAndObjectsInDatabaseNamed: (NSString *)name startWithKey: (NSData *)startKey usingBlock: (void (^) (NSData *data, NSData *key, NSInteger count, BOOL *stop))block;
 {
-    return [self _enumerateStartAtKey: startKey returnKey: YES returnData: YES usingBlock: block];
+    return [self enumerateStartAtKey:startKey endKey:nil returnKey:YES returnData:YES
+                          usingBlock:block];
 }
 
 #pragma mark Enumerate Keys
 - (BOOL)enumerateKeysOnlyUsingBlock: (void (^) (NSData *key, NSInteger count, BOOL *stop))block;
 {
-    return [self _enumerateStartAtKey: nil returnKey: YES returnData: NO usingBlock: ^(NSData *idata, NSData *ikey, NSInteger icount, BOOL *istop) {
-        block(ikey, icount, istop);
-    }];
+    return [self enumerateStartAtKey:nil endKey:nil returnKey:YES returnData:NO
+                          usingBlock:^(NSData *idata, NSData *ikey, NSInteger icount, BOOL *istop) {
+                              block(ikey, icount, istop);
+                          }];
 }
 
 - (BOOL)enumarteKeysOnlyStartWithKey: (NSData *)startKey usingBlock: (void (^) (NSData *key, NSInteger count, BOOL *stop))block;
 {
-    return [self _enumerateStartAtKey: startKey returnKey: YES returnData: NO usingBlock: ^(NSData *idata, NSData *ikey, NSInteger icount, BOOL *istop) {
-        block(ikey, icount, istop);
-    }];
+    return [self enumerateStartAtKey:startKey endKey:nil returnKey:YES returnData:NO
+                          usingBlock:^(NSData *idata, NSData *ikey, NSInteger icount, BOOL *istop) {
+                              block(ikey, icount, istop);
+                          }];
 }
 
 #pragma mark Enumerate Objects
 - (BOOL)enumerateDataItemsOnlyUsingBlock: (void (^) (NSData *data, NSInteger count, BOOL *stop))block;
 {
-    return [self _enumerateStartAtKey: nil returnKey: NO returnData: YES usingBlock:^(NSData *idata, NSData *ikey, NSInteger icount, BOOL *istop) {
-        block(idata, icount, istop);
-    }];
+    return [self enumerateStartAtKey:nil endKey:nil returnKey:NO returnData:YES
+                          usingBlock:^(NSData *idata, NSData *ikey, NSInteger icount, BOOL *istop) {
+                              block(idata, icount, istop);
+                          }];
 }
 
 - (BOOL)enumerateDataItemsOnlyStartWithKey: (NSData *)startKey usingBlock: (void (^) (NSData *data, NSInteger count, BOOL *stop))block;
 {
-    return [self _enumerateStartAtKey: startKey returnKey: NO returnData: YES usingBlock:^(NSData *idata, NSData *ikey, NSInteger icount, BOOL *istop) {
-        block(idata, icount, istop);
-    }];
+    return [self enumerateStartAtKey:startKey endKey:nil returnKey:NO returnData:YES
+                          usingBlock:^(NSData *idata, NSData *ikey, NSInteger icount, BOOL *istop) {
+                              block(idata, icount, istop);
+                          }];
 }
 
 #pragma mark Enumerate
-- (BOOL)_enumerateStartAtKey: (NSData *)startKey
-                   returnKey: (BOOL)rKey
-                  returnData: (BOOL)rData
-                  usingBlock: (void (^) (NSData *data, NSData *key, NSInteger count, BOOL *stop))block;
+- (BOOL)enumerateStartAtKey:(NSData *)startKey endKey:(NSData *)endKey returnKey:(BOOL)rKey returnData:(BOOL)rData
+                 usingBlock:(void (^) (NSData *data, NSData *key, NSInteger count, BOOL *stop))block
 {
     BOOL stop = NO;
     MDB_val _key;
@@ -1313,12 +1319,22 @@ NSString *const kLMDBKitDatabaseNamesKey = @"kLMDBKitDatabasesNameKey";
         _key.mv_size = [startKey length];
         _key.mv_data = (void *)[startKey bytes];
 
-        rc = mdb_cursor_get(cursor, &_key, &_data, MDB_SET_KEY);
+        rc = mdb_cursor_get(cursor, &_key, &_data, endKey != nil ? MDB_SET_RANGE : MDB_SET_KEY);
 
         if(rc != 0)
         {
             mdb_cursor_close(cursor);
             return NO;
+        }
+        else if (endKey != nil)
+        {
+            size_t minLen = MIN(_key.mv_size, endKey.length);
+            int compRes = memcmp(_key.mv_data, endKey.bytes, minLen);
+            if (compRes > 0)
+            {
+                mdb_cursor_close(cursor);
+                return NO;
+            }
         }
     }
     else
