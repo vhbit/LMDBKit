@@ -149,9 +149,28 @@ NSString *const kLMDBKitDatabaseNamesKey = @"kLMDBKitDatabasesNameKey";
     {
         int rc;
         rc = mdb_env_create(&_mdb_env);
-        rc = mdb_env_set_mapsize(_mdb_env, size*1024*1024);
-        rc = mdb_env_set_maxdbs(_mdb_env, maximumNumber);
-        rc = mdb_env_open(_mdb_env, [_path UTF8String], 0, 0660);
+        if (rc)
+            NSLog(@"Failed to create MDB environment: %d", rc);
+        else
+        {
+            rc = mdb_env_set_mapsize(_mdb_env, size*1024*1024);
+            if (rc)
+                NSLog(@"Failed to set map size: %d", rc);
+            else
+            {
+                rc = mdb_env_set_maxdbs(_mdb_env, maximumNumber);
+                if (rc)
+                    NSLog(@"Failed to set max dbs: %d", rc);
+                else
+                {
+                    rc = mdb_env_open(_mdb_env, [_path UTF8String], 0, 0660);
+                    if (rc)
+                        NSLog(@"Failed to open %@: %d", _path, rc);
+                }
+            }
+        }
+
+        
         
         BOOL created = NO;
         [self databaseNamed: kLMDBKitDefaultDatabaseName create: YES allowDuplicatedKeys: YES parentTransaction: nil created: &created];
